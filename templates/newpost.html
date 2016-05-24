@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>New post</title>
+</head>
+<body>
+	{% block content %}
+	<h2>New post</h2>
+	<form action="newpost" method="post">
+		<label>
+			<div>Title</div>
+			<input type="text" name="subject" value="{{title}}" style="width: 580px;">
+		</label>
+		<br>
+		<br>
+		<label>
+			<div>Content</div>
+			<textarea name="content" cols="70" rows="10">{{content}}</textarea>
+		</label>
+		<br>
+		<div style="color:red;">{{newpost_error}}</div>
+		<br>
+		<input type="submit" value="Submit">
+	</form>
+	<br>
+	<a href="/" style="color:white;">Main page</a>
+	{% endblock %}
+</body>
+</html>

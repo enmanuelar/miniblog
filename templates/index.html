@@ -10,15 +10,15 @@
 	{% block content %}
 	{% for entry in entries %}
 		<article>
-			<a href="/{{entry.key().id()}}" style="color:black; text-decoration:none;">
+			<a href="/blog/{{entry.key().id()}}" style="color:black; text-decoration:none;">
 				<h2 style="background-color: #0099cc;">{{entry.title}}</h2>
 			</a>
-			<time>{{entry.created}}</time>
+			<time>{{entry.date}}</time>
 			<p style="color:white; font-size: 16px; text-align: justify;">{{entry.content}}</p>
 		</article>
 	<hr>
 	{% endfor %}
-	<a href="/newpost" style="color: white;">Add new post</a>
+	<a href="/blog/newpost" style="color: white;">Add new post</a>
 	{% endblock %}
 </body>
 </html>

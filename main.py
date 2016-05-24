@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-import webapp2, os, jinja2
+import webapp2, os, jinja2, re
 from google.appengine.ext import db
 
 template_dir = os.path.join(os.path.dirname(__file__),'templates')
@@ -35,6 +35,7 @@ class Entry(db.Model):
 	title = db.StringProperty(required = True)
 	content = db.TextProperty(required = True)
 	created = db.DateTimeProperty(auto_now_add = True)
+	date = db.DateProperty(auto_now_add = True)
 
 class MainPage(Handler):
     def get(self):
@@ -52,12 +53,26 @@ class NewpostHandler(Handler):
 		content = self.request.get("content")
 		newpost_error = "Enter title and content"
 		if title and content:
-			entry = Entry(title = title, content = content)
+			entry = Entry(title = title, content = content, id="")
 			entry.put()
-			self.redirect('/')
+			entries = db.GqlQuery("SELECT * FROM Entry ORDER BY created ASC")
+			for entry in entries:
+				entry.id = entry.key().id()
+				entry.put()
+				last_entry = entry.id
+			self.redirect('/blog/' + str(last_entry))
 		else:
 			self.render("newpost.html", title=title, content=content, newpost_error=newpost_error)
 
+class ArticleHandler(Handler):
+	def get(self, *args):
+		article_id = self.request.url
+		blog_pos = article_id.find('/blog/')
+		article_id = int(article_id[blog_pos + 6:])
+		entries = db.GqlQuery("SELECT * FROM Entry")
+		self.render("article.html", article_id = article_id, entries = entries)
+
+
 app = webapp2.WSGIApplication([
-    ('/', MainPage), ('/newpost', NewpostHandler)
+     ('/blog', MainPage), ('/blog/newpost', NewpostHandler), ((r'/blog/(\d+)'), ArticleHandler)
 ], debug=True)

@@ -8,7 +8,19 @@
 </head>
 <body>
 	{% block content %}
-	
+		{% for entry in entries %}
+			{% if entry.key().id() == article_id %}
+				<article>
+					<a href="/blog/{{entry.key().id()}}" style="color:black; text-decoration:none;">
+						<h2 style="background-color: #0099cc;">{{entry.title}}</h2>
+					</a>
+					<time>{{entry.date}}</time>
+					<p style="color:white; font-size: 16px; text-align: justify;">{{entry.content}}</p>
+				</article>
+			{% endif %}
+		{% endfor %}
+	<br>
+	<a href="/blog" style="color:white;">Main page</a>
 	{% endblock %}
 </body>
 </html>

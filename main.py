@@ -39,7 +39,7 @@ class Entry(db.Model):
 
 class MainPage(Handler):
     def get(self):
-    	entries = db.GqlQuery("SELECT * FROM Entry ORDER BY created DESC")
+    	entries = db.GqlQuery("SELECT * FROM Entry ORDER BY created DESC LIMIT 10")
         self.render("index.html", entries = entries)
 
 
@@ -55,12 +55,8 @@ class NewpostHandler(Handler):
 		if title and content:
 			entry = Entry(title = title, content = content, id="")
 			entry.put()
-			entries = db.GqlQuery("SELECT * FROM Entry ORDER BY created ASC")
-			for entry in entries:
-				entry.id = entry.key().id()
-				entry.put()
-				last_entry = entry.id
-			self.redirect('/blog/' + str(last_entry))
+			last_entry = entry.get_by_id(entry.key().id())
+			self.redirect('/blog/' + str(entry.key().id()))
 		else:
 			self.render("newpost.html", title=title, content=content, newpost_error=newpost_error)
 

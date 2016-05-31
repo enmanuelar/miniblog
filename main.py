@@ -15,10 +15,12 @@
 # limitations under the License.
 #
 import webapp2, os, jinja2, re
+from signup import *
 from google.appengine.ext import db
 
 template_dir = os.path.join(os.path.dirname(__file__),'templates')
 jinja_env = jinja2.Environment(loader=jinja2.FileSystemLoader(template_dir), autoescape = True)
+
 
 class Handler(webapp2.RequestHandler):
 	def write(self, *a, **kw):
@@ -68,7 +70,18 @@ class ArticleHandler(Handler):
 		entries = db.GqlQuery("SELECT * FROM Entry")
 		self.render("article.html", article_id = article_id, entries = entries)
 
+class SignupHandler(Handler):
+	def get(self):
+		self.render("signup.html")
+	
+	def post(self):
+		username = self.request.get("username")
+		password = self.request.get("password")
+		verify = self.request.get("verify")
+		email = self.request.get("email")
+		signup_obj = Signup(username, password, verify, email)
+		signup_obj.validate()
 
 app = webapp2.WSGIApplication([
-     ('/blog', MainPage), ('/blog/newpost', NewpostHandler), ((r'/blog/(\d+)'), ArticleHandler)
+     ('/blog', MainPage), ('/blog/newpost', NewpostHandler), ((r'/blog/(\d+)'), ArticleHandler), ('/blog/signup', SignupHandler)
 ], debug=True)

@@ -1,13 +1,7 @@
 {% extends "base.html" %}
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-	<meta charset="UTF-8">
-	<title>Ear Blog</title>
-</head>
-<body>
 	{% block content %}
+	<a href="/blog/signup" style="color: white;">Signup</a>
 	{% for entry in entries %}
 		<article>
 			<a href="/blog/{{entry.key().id()}}" style="color:black; text-decoration:none;">
@@ -20,5 +14,3 @@
 	{% endfor %}
 	<a href="/blog/newpost" style="color: white;">Add new post</a>
 	{% endblock %}
-</body>
-</html>

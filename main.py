@@ -80,7 +80,13 @@ class SignupHandler(Handler):
 		verify = self.request.get("verify")
 		email = self.request.get("email")
 		signup_obj = Signup(username, password, verify, email)
-		signup_obj.validate()
+		signup_obj.put_user()
+		invalid = signup_obj.validate()
+
+		if not invalid:
+			self.redirect('/blog')
+		elif invalid:
+			self.render("signup.html", **signup_obj.get_params())
 
 app = webapp2.WSGIApplication([
      ('/blog', MainPage), ('/blog/newpost', NewpostHandler), ((r'/blog/(\d+)'), ArticleHandler), ('/blog/signup', SignupHandler)

@@ -16,6 +16,7 @@
 #
 import webapp2, os, jinja2, re, hashing
 from signup import *
+from login import Login
 from google.appengine.ext import db
 
 template_dir = os.path.join(os.path.dirname(__file__),'templates')
@@ -47,7 +48,6 @@ class MainPage(Handler):
 
 
 class NewpostHandler(Handler):
-	"""docstring for NewpostHandler"""
 	def get(self):
 		self.render("newpost.html")
 	
@@ -94,15 +94,36 @@ class SignupHandler(Handler):
 class WelcomeHandler(Handler):
 	def get(self):
 		user_cookie = self.request.cookies.get('name')
-		user_id = int(self.request.cookies.get('user_id'))
-		entity = Users.get_by_id(user_id)
-		valid_hash = hashing.check_secure_val(user_cookie, entity.username)
-		if valid_hash:
-			self.render("welcome.html", user = entity.username)
-		else:
+		try:
+			user_id = int(self.request.cookies.get('user_id'))
+			entity = Users.get_by_id(user_id)
+			valid_hash = hashing.check_secure_val(user_cookie, entity.username)
+			if valid_hash:
+				self.render("welcome.html", user = entity.username)
+			else:
+				self.redirect('/blog/signup')
+		except :
 			self.redirect('/blog/signup')
+
+class LoginHandler(Handler):
+	def get(self):
+		self.render("login.html")
+
+	def post(self):
+		username = self.request.get("username")
+		password = self.request.get("password")
+		login_obj = Login(username, password)
+		if login_obj.get_user():
+			cookies = login_obj.set_cookies()
+			self.response.headers.add_header('Set-Cookie', 'name=%s; Path=/' % (cookies[0]))
+			self.response.headers.add_header('Set-Cookie', 'user_id=%s; Path=/' % (cookies[1]))
+			self.redirect("/blog/welcome")
+		else:
+			self.render("login.html", username=username, login_error="invalid login")
+
+		
 
 app = webapp2.WSGIApplication([
      ('/blog', MainPage), ('/blog/newpost', NewpostHandler), ((r'/blog/(\d+)'), ArticleHandler), ('/blog/signup', SignupHandler),
-     ('/blog/welcome', WelcomeHandler)
+     ('/blog/welcome', WelcomeHandler), ('/blog/login', LoginHandler)
 ], debug=True)

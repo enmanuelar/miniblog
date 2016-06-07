@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2 style="color: white;">Login</h2>
+<form action="/blog/login" method="post">
+	<table>
+		<tr>
+			<td>Username</td>
+			<td><input type="text" name="username" placeholder="Username" value={{username}}></td>
+		</tr>
+		<tr>
+			<td>Password</td>
+			<td><input type="password" name="password" placeholder="Password" value={{password}}></td>
+		</tr>
+	</table>
+	<br />
+	<input type="submit" value="Submit"/>
+	<br>
+	<br>
+	<span class="error" style="color:#ffb3b3">{{login_error}}</span>
+</form>
+{% endblock %}

@@ -31,8 +31,8 @@ class Signup():
 			else:
 				user = Users(username = self.username, password = hashed[0], salt = hashed[1])
 			user.put()
-			key = user.key().id()
-			return key
+			user_id = user.key().id()
+			return user_id
 
 	def set_cookies(self):
 		cookie = str(hashing.hash_cookie(self.username))

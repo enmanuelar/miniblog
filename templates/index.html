@@ -2,6 +2,8 @@
 
 	{% block content %}
 	<a href="/blog/signup" style="color: white;">Signup</a>
+	|
+	<a href="/blog/newpost" style="color: white;">Add new post</a>
 	{% for entry in entries %}
 		<article>
 			<a href="/blog/{{entry.key().id()}}" style="color:black; text-decoration:none;">
@@ -12,5 +14,4 @@
 		</article>
 	<hr>
 	{% endfor %}
-	<a href="/blog/newpost" style="color: white;">Add new post</a>
 	{% endblock %}

@@ -1,13 +1,15 @@
 import webapp2, re
+import hashing
 from google.appengine.ext import db
 
 class Users(db.Model):
 	username = db.StringProperty(required = True)
 	password = db.StringProperty(required = True)
+	salt = db.StringProperty(required = True)
 	email = db.EmailProperty()
 
 class Signup():
-	def __init__(self, username, password, verify, email):
+	def __init__(self, username, password, verify, email=None):
 		self.username = username
 		self.password = password
 		self.verify = verify
@@ -23,8 +25,18 @@ class Signup():
 					self.params["username_error"] = "Username already exists"
 					self.error = True
 					return
-			user = Users(username = self.username, password = self.password, email = self.email)
+			hashed = hashing.hashpw(self.password, salt=None)
+			if self.email:
+				user = Users(username = self.username, password = hashed[0], salt = hashed[1], email = self.email)
+			else:
+				user = Users(username = self.username, password = hashed[0], salt = hashed[1])
 			user.put()
+			key = user.key().id()
+			return key
+
+	def set_cookies(self):
+		cookie = str(hashing.hash_cookie(self.username))
+		return cookie
 
 	def valid_username(self):
 		USER_RE = re.compile(r"^[a-zA-Z0-9_-]{3,20}$")
@@ -40,7 +52,7 @@ class Signup():
 
 	def valid_email(self):
 		EMAIL_RE = re.compile(r"^[\S]+@[\S]+.[\S]+$")
-		return self.email or EMAIL_RE.match(self.email)
+		return not self.email or EMAIL_RE.match(self.email)
 		
 	def validate(self):
 		if not self.valid_username():

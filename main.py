@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-import webapp2, os, jinja2, re
+import webapp2, os, jinja2, re, hashing
 from signup import *
 from google.appengine.ext import db
 
@@ -42,6 +42,7 @@ class Entry(db.Model):
 class MainPage(Handler):
     def get(self):
     	entries = db.GqlQuery("SELECT * FROM Entry ORDER BY created DESC LIMIT 10")
+    	user_cookie = self.request.cookies.get('user')
         self.render("index.html", entries = entries)
 
 
@@ -80,14 +81,28 @@ class SignupHandler(Handler):
 		verify = self.request.get("verify")
 		email = self.request.get("email")
 		signup_obj = Signup(username, password, verify, email)
-		signup_obj.put_user()
+		user_id = str(signup_obj.put_user())
 		invalid = signup_obj.validate()
 
-		if not invalid:
-			self.redirect('/blog')
+		if not invalid: 
+			self.response.headers.add_header('Set-Cookie', 'name=%s; Path=/' % (signup_obj.set_cookies()))
+			self.response.headers.add_header('Set-Cookie', 'user_id=%s; Path=/' % (user_id))
+			self.redirect('/blog/welcome')
 		elif invalid:
 			self.render("signup.html", **signup_obj.get_params())
 
+class WelcomeHandler(Handler):
+	def get(self):
+		user_cookie = self.request.cookies.get('name')
+		user_id = int(self.request.cookies.get('user_id'))
+		entity = Users.get_by_id(user_id)
+		valid_hash = hashing.check_secure_val(user_cookie, entity.username)
+		if valid_hash:
+			self.render("welcome.html", user = entity.username)
+		else:
+			self.redirect('/blog/signup')
+
 app = webapp2.WSGIApplication([
-     ('/blog', MainPage), ('/blog/newpost', NewpostHandler), ((r'/blog/(\d+)'), ArticleHandler), ('/blog/signup', SignupHandler)
+     ('/blog', MainPage), ('/blog/newpost', NewpostHandler), ((r'/blog/(\d+)'), ArticleHandler), ('/blog/signup', SignupHandler),
+     ('/blog/welcome', WelcomeHandler)
 ], debug=True)

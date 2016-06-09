@@ -121,9 +121,16 @@ class LoginHandler(Handler):
 		else:
 			self.render("login.html", username=username, login_error="invalid login")
 
+class LogoutHandler(Handler):
+	def get(self):
+		name_cookie = self.request.cookies.get('name')
+		user_id_cookie = self.request.cookies.get('user_id')
+		self.response.delete_cookie('name')
+		self.response.delete_cookie('user_id')		
+		self.redirect("/blog")
 		
 
 app = webapp2.WSGIApplication([
      ('/blog', MainPage), ('/blog/newpost', NewpostHandler), ((r'/blog/(\d+)'), ArticleHandler), ('/blog/signup', SignupHandler),
-     ('/blog/welcome', WelcomeHandler), ('/blog/login', LoginHandler)
+     ('/blog/welcome', WelcomeHandler), ('/blog/login', LoginHandler), ('/blog/logout', LogoutHandler)
 ], debug=True)

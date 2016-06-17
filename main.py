@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-import webapp2, os, jinja2, re, hashing
+import webapp2, os, jinja2, re, hashing, json
 from signup import *
 from login import Login
 from google.appengine.ext import db
@@ -50,7 +50,7 @@ class MainPage(Handler):
 class NewpostHandler(Handler):
 	def get(self):
 		self.render("newpost.html")
-	
+
 	def post(self):
 		title = self.request.get("subject")
 		content = self.request.get("content")
@@ -74,7 +74,7 @@ class ArticleHandler(Handler):
 class SignupHandler(Handler):
 	def get(self):
 		self.render("signup.html")
-	
+
 	def post(self):
 		username = self.request.get("username")
 		password = self.request.get("password")
@@ -84,7 +84,7 @@ class SignupHandler(Handler):
 		user_id = str(signup_obj.put_user())
 		invalid = signup_obj.validate()
 
-		if not invalid: 
+		if not invalid:
 			self.response.headers.add_header('Set-Cookie', 'name=%s; Path=/' % (signup_obj.set_cookies()))
 			self.response.headers.add_header('Set-Cookie', 'user_id=%s; Path=/' % (user_id))
 			self.redirect('/blog/welcome')
@@ -126,11 +126,51 @@ class LogoutHandler(Handler):
 		name_cookie = self.request.cookies.get('name')
 		user_id_cookie = self.request.cookies.get('user_id')
 		self.response.delete_cookie('name')
-		self.response.delete_cookie('user_id')		
+		self.response.delete_cookie('user_id')
 		self.redirect("/blog")
-		
+
+class JsonHandler(Handler):
+	def gen_article_json(self, content=None, created=None, subject=None):
+		json_s = json.dumps({
+							"content": content,
+							"created": created,
+							"subject": subject
+							})
+		self.response.headers['Content-Type'] = 'application/json'
+		self.response.out.write(json_s)
+
+	def gen_main_json(self, entries):
+		json_list = []
+		for entry in entries:
+			json_list.append({
+							"content": entry.content,
+							"created": str(entry.created),
+							"subject": entry.title
+							})
+		json_s = json.dumps(json_list)
+		self.response.headers['Content-Type'] = 'application/json'
+		self.response.out.write(json_s)
+
+class JsonArticleHandler(JsonHandler):
+	def get(self, *args):
+		article_id = re.findall(r'\d+', str(args))
+		entity = Entry.get_by_id(int(article_id[0]))
+		json_dict = {"content": entity.content, "created": str(entity.created), "subject": entity.title}
+		self.gen_article_json(**json_dict)
+
+class JsonMainPageHandler(JsonHandler):
+	def get(self):
+		entries = db.GqlQuery("SELECT * FROM Entry")
+		self.gen_main_json(entries)
 
 app = webapp2.WSGIApplication([
-     ('/blog', MainPage), ('/blog/newpost', NewpostHandler), ((r'/blog/(\d+)'), ArticleHandler), ('/blog/signup', SignupHandler),
-     ('/blog/welcome', WelcomeHandler), ('/blog/login', LoginHandler), ('/blog/logout', LogoutHandler)
+     ('/blog/?', MainPage),
+     ('/blog/newpost/?', NewpostHandler),
+     ((r'/blog/(\d+)'), ArticleHandler),
+     ('/blog/signup/?', SignupHandler),
+     ('/blog/welcome/?', WelcomeHandler),
+     ('/blog/login/?', LoginHandler),
+     ('/blog/logout/?', LogoutHandler),
+     ((r'/blog/(\d+).json'), JsonArticleHandler),
+     ('/blog.json', JsonMainPageHandler)
 ], debug=True)

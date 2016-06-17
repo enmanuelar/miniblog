@@ -1,12 +1,5 @@
 {% extends "base.html" %}
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-	<meta charset="UTF-8">
-	<title>Article</title>
-</head>
-<body>
 	{% block content %}
 		{% for entry in entries %}
 			{% if entry.key().id() == article_id %}
@@ -22,5 +15,3 @@
 	<br>
 	<a href="/blog" style="color:white;">Main page</a>
 	{% endblock %}
-</body>
-</html>

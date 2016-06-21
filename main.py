@@ -14,10 +14,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-import webapp2, os, jinja2, re, hashing
+import webapp2, os, jinja2, re, hashing, json, logging, time
 from signup import *
 from login import Login
 from google.appengine.ext import db
+from google.appengine.api import memcache
 
 template_dir = os.path.join(os.path.dirname(__file__),'templates')
 jinja_env = jinja2.Environment(loader=jinja2.FileSystemLoader(template_dir), autoescape = True)
@@ -40,17 +41,40 @@ class Entry(db.Model):
 	created = db.DateTimeProperty(auto_now_add = True)
 	date = db.DateProperty(auto_now_add = True)
 
+def query_time(query_time, on_query = False):
+	if query_time and on_query:
+		q_time = [query_time]
+	elif not query_time:
+		q_time = [None]
+	if not on_query and q_time:
+		return q_time.pop() 
+
+
+def get_top_articles(update = False):
+	key = "top"
+	entries = memcache.get(key)
+	if entries == None or update:
+		logging.error("DB QUERY")
+		query_time(time.time(), on_query = True)
+		entries = db.GqlQuery("SELECT * FROM Entry ORDER BY created DESC LIMIT 10")
+		memcache.set(key, entries)
+	return entries
+
 class MainPage(Handler):
     def get(self):
-    	entries = db.GqlQuery("SELECT * FROM Entry ORDER BY created DESC LIMIT 10")
+    	entries = get_top_articles()
     	user_cookie = self.request.cookies.get('user')
-        self.render("index.html", entries = entries)
+    	time_passed = query_time(None, False)
+    	if time_passed:
+    		time_passed -= time.time()
+    	logging.error(time_passed)
+        self.render("index.html", entries = entries, query_time = time_passed)
 
 
 class NewpostHandler(Handler):
 	def get(self):
 		self.render("newpost.html")
-	
+
 	def post(self):
 		title = self.request.get("subject")
 		content = self.request.get("content")
@@ -58,6 +82,7 @@ class NewpostHandler(Handler):
 		if title and content:
 			entry = Entry(title = title, content = content, id="")
 			entry.put()
+			get_top_articles(update=True)
 			last_entry = entry.get_by_id(entry.key().id())
 			self.redirect('/blog/' + str(entry.key().id()))
 		else:
@@ -74,7 +99,7 @@ class ArticleHandler(Handler):
 class SignupHandler(Handler):
 	def get(self):
 		self.render("signup.html")
-	
+
 	def post(self):
 		username = self.request.get("username")
 		password = self.request.get("password")
@@ -84,7 +109,7 @@ class SignupHandler(Handler):
 		user_id = str(signup_obj.put_user())
 		invalid = signup_obj.validate()
 
-		if not invalid: 
+		if not invalid:
 			self.response.headers.add_header('Set-Cookie', 'name=%s; Path=/' % (signup_obj.set_cookies()))
 			self.response.headers.add_header('Set-Cookie', 'user_id=%s; Path=/' % (user_id))
 			self.redirect('/blog/welcome')
@@ -126,11 +151,51 @@ class LogoutHandler(Handler):
 		name_cookie = self.request.cookies.get('name')
 		user_id_cookie = self.request.cookies.get('user_id')
 		self.response.delete_cookie('name')
-		self.response.delete_cookie('user_id')		
+		self.response.delete_cookie('user_id')
 		self.redirect("/blog")
-		
+
+class JsonHandler(Handler):
+	def gen_article_json(self, content=None, created=None, subject=None):
+		json_s = json.dumps({
+							"content": content,
+							"created": created,
+							"subject": subject
+							})
+		self.response.headers['Content-Type'] = 'application/json'
+		self.response.out.write(json_s)
+
+	def gen_main_json(self, entries):
+		json_list = []
+		for entry in entries:
+			json_list.append({
+							"content": entry.content,
+							"created": str(entry.created),
+							"subject": entry.title
+							})
+		json_s = json.dumps(json_list)
+		self.response.headers['Content-Type'] = 'application/json'
+		self.response.out.write(json_s)
+
+class JsonArticleHandler(JsonHandler):
+	def get(self, *args):
+		article_id = re.findall(r'\d+', str(args))
+		entity = Entry.get_by_id(int(article_id[0]))
+		json_dict = {"content": entity.content, "created": str(entity.created), "subject": entity.title}
+		self.gen_article_json(**json_dict)
+
+class JsonMainPageHandler(JsonHandler):
+	def get(self):
+		entries = db.GqlQuery("SELECT * FROM Entry")
+		self.gen_main_json(entries)
 
 app = webapp2.WSGIApplication([
-     ('/blog', MainPage), ('/blog/newpost', NewpostHandler), ((r'/blog/(\d+)'), ArticleHandler), ('/blog/signup', SignupHandler),
-     ('/blog/welcome', WelcomeHandler), ('/blog/login', LoginHandler), ('/blog/logout', LogoutHandler)
+     ('/blog/?', MainPage),
+     ('/blog/newpost/?', NewpostHandler),
+     ((r'/blog/(\d+)'), ArticleHandler),
+     ('/blog/signup/?', SignupHandler),
+     ('/blog/welcome/?', WelcomeHandler),
+     ('/blog/login/?', LoginHandler),
+     ('/blog/logout/?', LogoutHandler),
+     ((r'/blog/(\d+).json'), JsonArticleHandler),
+     ('/blog.json', JsonMainPageHandler)
 ], debug=True)

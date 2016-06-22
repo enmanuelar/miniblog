@@ -14,10 +14,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-import webapp2, os, jinja2, re, hashing, json
+import webapp2, os, jinja2, re, hashing, json, logging, time
 from signup import *
 from login import Login
 from google.appengine.ext import db
+from google.appengine.api import memcache
 
 template_dir = os.path.join(os.path.dirname(__file__),'templates')
 jinja_env = jinja2.Environment(loader=jinja2.FileSystemLoader(template_dir), autoescape = True)
@@ -40,11 +41,36 @@ class Entry(db.Model):
 	created = db.DateTimeProperty(auto_now_add = True)
 	date = db.DateProperty(auto_now_add = True)
 
+q_time = {"top": [], "article": [], "": [0]}
+def query_time(on_query = False, key = ""):
+	global q_time
+	if on_query and key != "":
+		q_time[key].append(time.time())
+	elif not on_query and q_time[key]:
+		logging.error("*******QTIME*******")
+		logging.error(q_time[key])
+		return q_time[key][-1]
+
+def get_top_articles(update = False):
+	key = "top"
+	entries = memcache.get(key)
+	if entries == None or update:
+		logging.error("DB QUERY")
+		query_time(True, key)
+		entries = db.GqlQuery("SELECT * FROM Entry ORDER BY created DESC LIMIT 10")
+		memcache.set(key, entries)
+	return entries
+
 class MainPage(Handler):
     def get(self):
-    	entries = db.GqlQuery("SELECT * FROM Entry ORDER BY created DESC LIMIT 10")
+    	entries = get_top_articles()
     	user_cookie = self.request.cookies.get('user')
-        self.render("index.html", entries = entries)
+    	last_query = query_time(False, "top")
+    	if last_query:
+    		last_query = int(time.time() - last_query)
+    	else:
+    		last_query = 0
+        self.render("index.html", entries = entries, query_time = last_query)
 
 
 class NewpostHandler(Handler):
@@ -58,18 +84,35 @@ class NewpostHandler(Handler):
 		if title and content:
 			entry = Entry(title = title, content = content, id="")
 			entry.put()
+			get_top_articles(update=True)
 			last_entry = entry.get_by_id(entry.key().id())
 			self.redirect('/blog/' + str(entry.key().id()))
 		else:
 			self.render("newpost.html", title=title, content=content, newpost_error=newpost_error)
+
+def get_article(article_id):
+	key = str(article_id)
+	entity = memcache.get(key)
+	if entity == None:
+		logging.error("*****ART DB QUERY******")
+		query_time(True, "article")
+		entity = Entry.get_by_id(article_id)
+		memcache.set(key, entity)	
+	return entity
 
 class ArticleHandler(Handler):
 	def get(self, *args):
 		article_id = self.request.url
 		blog_pos = article_id.find('/blog/')
 		article_id = int(article_id[blog_pos + 6:])
-		entries = db.GqlQuery("SELECT * FROM Entry")
-		self.render("article.html", article_id = article_id, entries = entries)
+		entity = get_article(article_id)
+		last_query = query_time(False, "article")
+		if last_query:
+			last_query = int(time.time() - last_query)
+		else:
+			last_query = 0
+
+		self.render("article.html", article_id = article_id, entity = entity, query_time = last_query)
 
 class SignupHandler(Handler):
 	def get(self):
@@ -163,6 +206,13 @@ class JsonMainPageHandler(JsonHandler):
 		entries = db.GqlQuery("SELECT * FROM Entry")
 		self.gen_main_json(entries)
 
+class FlushHandler(Handler):
+	def get(self):
+		memcache.flush_all()
+		self.redirect('/blog')
+
+
+		
 app = webapp2.WSGIApplication([
      ('/blog/?', MainPage),
      ('/blog/newpost/?', NewpostHandler),
@@ -172,5 +222,6 @@ app = webapp2.WSGIApplication([
      ('/blog/login/?', LoginHandler),
      ('/blog/logout/?', LogoutHandler),
      ((r'/blog/(\d+).json'), JsonArticleHandler),
-     ('/blog.json', JsonMainPageHandler)
+     ('/blog.json', JsonMainPageHandler),
+     ('/blog/flush/?', FlushHandler)
 ], debug=True)

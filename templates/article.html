@@ -1,17 +1,14 @@
 {% extends "base.html" %}
 
 	{% block content %}
-		{% for entry in entries %}
-			{% if entry.key().id() == article_id %}
-				<article>
-					<a href="/blog/{{entry.key().id()}}" style="color:black; text-decoration:none;">
-						<h2 style="background-color: #0099cc;">{{entry.title}}</h2>
-					</a>
-					<time>{{entry.date}}</time>
-					<p style="color:white; font-size: 16px; text-align: justify;">{{entry.content}}</p>
-				</article>
-			{% endif %}
-		{% endfor %}
+	<article>
+		<a href="/blog/{{article_id}}" style="color:black; text-decoration:none;">
+			<h2 style="background-color: #0099cc;">{{entity.title}}</h2>
+		</a>
+		<time>{{entity.date}}</time>
+		<p style="color:white; font-size: 16px; text-align: justify;">{{entity.content}}</p>
+	</article>
 	<br>
 	<a href="/blog" style="color:white;">Main page</a>
+	<p>Queried {{ query_time }} seconds ago</p>
 	{% endblock %}
